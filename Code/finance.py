@@ -31,6 +31,11 @@ panel_data = data.DataReader('INPX', 'google', start_date, end_date)
     3rd dim: instrument identifiers 
 '''
 
-df_data = panel_data.to_frame()
+# df_data = panel_data.to_frame()
+all_weekdays = pd.date_range(start_date, end_date, freq='B')
+
+close = panel_data['close']
+close = close.reindex(all_weekdays)
+close = close.fillna(method='ffill')
 
 
