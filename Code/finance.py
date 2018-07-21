@@ -39,5 +39,5 @@ close = close.reindex(all_weekdays)
 close = close.fillna(method='ffill')
 
 short_rolling = close.rolling(window=20).mean()
-
+long_rolling = close.rolling(window=100).mean()
 
