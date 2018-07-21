@@ -35,9 +35,9 @@ def line_plot(line1, line2, label1=None, label2=None, title=''):
 def normalize_data(data):
     return normalize(data, norm='l2', axis=1, copy=True)
 
-def create_model(input_features, output_neurons=1):
-    input_layer = Input(shape=(input_features, 
-    lstm_layer = LSTM(20)(input_layer)
+def create_model(input_features, output_neurons=1): # TODO: Has to be checked!
+    input_layer = Input(shape=(input_features, ))
+    lstm_layer = LSTM(20, input_shape=(input_features, ))(input_layer)
     lstm_layer = Dropout(0.5)(lstm_layer)
     dense_layer = Dense(output_neurons, activation=keras.activations.linear)
 
