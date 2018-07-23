@@ -41,3 +41,14 @@ close = close.fillna(method='ffill')
 short_rolling = close.rolling(window=20).mean()
 long_rolling = close.rolling(window=100).mean()
 
+fig, ax = plt.subplots(figsize=(16,9))
+
+ax.plot(close.index, close, label='close')
+ax.plot(short_rolling.index, short_rolling, label='20 days rolling')
+ax.plot(long_rolling.index, long_rolling, label='100 days rolling')
+
+ax.set_xlabel('Date')
+ax.set_ylabel('Adjusted closing price ($)')
+ax.legend()
+plt.show()
+
