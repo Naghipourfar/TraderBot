@@ -24,7 +24,7 @@ def line_plot(line1, line2, label1=None, label2=None, title=''):
     ax.plot(line2, label=label2, linewidth=2)
 
     for i, j in zip(line1, line2):
-        ax.plot([], [],)
+        ax.plot([], [], )
 
     ax.set_ylabel('price [USD]', fontsize=14)
     ax.set_title(title, fontsize=18)
@@ -35,9 +35,10 @@ def line_plot(line1, line2, label1=None, label2=None, title=''):
 def normalize_data(data):
     return normalize(data, norm='l2', axis=1, copy=True)
 
-def create_model(input_features, output_neurons=1): # TODO: Has to be checked!
-    input_layer = Input(shape=(input_features, ))
-    lstm_layer = LSTM(20, input_shape=(input_features, ))(input_layer)
+
+def create_model(input_features, output_neurons=1):  # TODO: Has to be checked!
+    input_layer = Input(shape=(input_features,))
+    lstm_layer = LSTM(20, input_shape=(input_features,))(input_layer)
     lstm_layer = Dropout(0.5)(lstm_layer)
     dense_layer = Dense(output_neurons, activation=keras.activations.linear)
 
@@ -46,9 +47,10 @@ def create_model(input_features, output_neurons=1): # TODO: Has to be checked!
 
     return model
 
-def download_data():
+
+def download_data(coin):
     endpoint = 'https://min-api.cryptocompare.com/data/histoday'
-    res = requests.get(endpoint + '?fsym='+coin+'&tsym=USD&limit=2000')
+    res = requests.get(endpoint + '?fsym=' + coin + '&tsym=USD&limit=2000')
     hist = pd.DataFrame(json.loads(res.content)['Data'])
     hist = hist.set_index('time')
     hist.index = pd.to_datetime(hist.index, unit='s')
@@ -58,7 +60,7 @@ def download_data():
 
 def main():
     coin = 'BTC'
-    data = download_data()
+    data = download_data(coin)
     y_data = data['close']
     x_data = data.drop(['close'], axis=1)
 
@@ -74,9 +76,5 @@ def main():
               verbose=2)
 
 
-
-
-
 if __name__ == '__main__':
     main()
-
