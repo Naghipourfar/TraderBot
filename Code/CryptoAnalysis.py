@@ -1,6 +1,7 @@
-from pandas import ewma
 import pandas as pd
 import numpy as np
+
+from pandas import ewma
 
 
 class CryptoAnalysis(object):
