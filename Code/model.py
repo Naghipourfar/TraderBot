@@ -10,6 +10,14 @@ from keras.layers import Dropout, Dense, LSTM
 from keras.models import Sequential
 from sklearn.preprocessing import normalize, MinMaxScaler
 
+"""
+    Created by Mohsen Naghipourfar on 7/25/18.
+    Email : mn7697np@gmail.com or naghipourfar@ce.sharif.edu
+    Website: http://ce.sharif.edu/~naghipourfar
+    Github: https://github.com/naghipourfar
+    Skype: mn7697np
+"""
+
 
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
     n_vars = 1 if type(data) is list else data.shape[1]
@@ -42,13 +50,17 @@ def normalize_data(data):
 
 def create_model(X, layers):
     model = Sequential()
-    model.add(LSTM(layers[0], input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
-    model.add(Dropout(0.5))
-    model.add(LSTM(layers[1]))
-    model.add(Dropout(0.5))
-    model.add(Dense(layers[2], activation='linear', name="output_layer"))
+    for i in range(len(layers) - 1):
+        if i == 0:
+            model.add(LSTM(layers[0], input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
+        elif i == len(layers) - 2:
+            model.add(LSTM(layers[i], return_sequences=False))
+        else:
+            model.add(LSTM(layers[i], return_sequences=True))
+        model.add(Dropout(0.5))
+    model.add(Dense(layers[-1], activation='linear', name="output_layer"))
+    model.compile(loss=keras.losses.mae, optimizer="adam")
     model.summary()
-    model.compile(loss=keras.losses.mse, optimizer="adam")
     return model
 
 
@@ -82,8 +94,10 @@ def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output
 
     scaled_values = scalar.fit_transform(raw_data_values)
 
-    # plt.plot(scaled_values[:, 0])
-    # plt.show()
+    plt.figure(figsize=(20, 10))
+    plt.ylim(-1, 1.5)
+    plt.plot(scaled_values[:, 0])
+    plt.show()
 
     # normalized_values = normalize(raw_data_values, norm='l2', axis=1)
 
@@ -121,6 +135,8 @@ def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output
         # x_data = x_data.reshape((x_data.shape[0], 1, x_data.shape[1]))
         # y_data = y_data.reshape((y_data.shape[0], 1, y_data.shape[1]))
 
+        # x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=test_split, shuffle=True)
+
         x_train = x_data[:-test_size]
         y_train = y_data[:-test_size]
 
@@ -148,14 +164,22 @@ def plot(data, predictions):
     plt.show()
 
 
-def plot_seq(data, predictions, n_seq):
+def plot_seq(data, predictions, n_seq, start_idx=1606, step=1):
     predictions = np.array(predictions)
-    data_plot = plt.plot(data, color="blue", label="data")
-    prediction_line = None
+    plt.figure(figsize=(20, 10))
+    plt.plot(data, color="blue", label="data")
+    if n_seq == 1:
+        x = np.arange(start_idx, start_idx + predictions.shape[0])
+        plt.plot(x, predictions, color='red', label="prediction")
     for i in range(predictions.shape[0]):
-        x = np.arange(1606 + i, 1606 + i + n_seq)
-        prediction_line = plt.plot(x, predictions[i], color="red", label="prediction")
-    plt.legend(handles=[data_plot, prediction_line], labels=['data', 'prediction'], loc="best")
+        x = np.arange(start_idx + i, start_idx + i + n_seq)
+        if n_seq != 1:
+            plt.plot(x, predictions[i], color="red", label="prediction")
+        else:
+            plt.plot(x, predictions[i], 'ro', color="red", label="prediction")
+        if step != 1:
+            start_idx += step
+    # plt.legend(handles=[data_plot, prediction_line], labels=['data', 'prediction'], loc="best")
     plt.ylabel("Scaled Close Price")
     plt.xlabel("Time")
     plt.show()
@@ -163,9 +187,15 @@ def plot_seq(data, predictions, n_seq):
 
 def main():
     filename = "../Data/data.csv"
-    n_lag = 5
-    n_seq = 7
+    n_lag = 5  # past data to be used
+    n_seq = 1  # number of future days to predict
+    model_path = "./predictor%d_%d.h5" % (n_seq, n_lag)
     target_idx = 5
+    epochs = 5
+    batch_size = 64
+
+    tensorboard = keras.callbacks.TensorBoard(log_dir='./Graph/', histogram_freq=0,
+                                              write_graph=True, write_images=True)
     if not os.path.exists(filename):
         coin = 'BTC'
         data = download_data(coin)
@@ -182,19 +212,36 @@ def main():
                                                                              n_seq=n_seq,
                                                                              target_idx=target_idx,
                                                                              output_cols=None)
-    model = create_model(x_train, layers=[1000, 500, n_seq])
-    model.fit(x=x_train,
-              y=y_train,
-              batch_size=128,
-              epochs=5,
-              verbose=2,
-              validation_split=0.1,
-              shuffle=False)
 
-    predictions = model.predict(x_test)
+    if not os.path.exists(model_path):
+        model = create_model(x_train, layers=[1024, 512, 256, 128, n_seq])
+        model.fit(x=x_train,
+                  y=y_train,
+                  batch_size=batch_size,
+                  epochs=epochs,
+                  verbose=2,
+                  # validation_split=0.2,
+                  validation_data=(x_test, y_test),
+                  callbacks=[tensorboard],
+                  shuffle=True)
+        # model.save(model_path)
+        print("The network has been saved!")
+    else:
+        print("The network exists. Trying to load ...")
+        model = keras.models.load_model(model_path)
+        print("The network has been loaded!")
+
+    # candidate_data = x_data[[i for i in range(0, x_data.shape[0], 50)], :]
+
+    # candidate_data = candidate_data.reshape((candidate_data.shape[0], 1, candidate_data.shape[1]))
+
+    candidate_data = x_test
+
+    predictions = model.predict(candidate_data)
+
     print(pd.DataFrame(predictions).head())
 
-    plot_seq(y_data[:, 0], predictions, n_seq)
+    plot_seq(y_data[:, 0], predictions, n_seq, start_idx=1606, step=1)
 
 
 if __name__ == '__main__':
