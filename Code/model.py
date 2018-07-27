@@ -44,13 +44,15 @@ def create_model(X, layers):
     model = Sequential()
     model.add(LSTM(layers[0], input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
     model.add(Dropout(0.5))
-    model.add(LSTM(layers[1], return_sequences=False))
+    model.add(LSTM(layers[1]))
     model.add(Dropout(0.5))
-    model.add(Dense(layers[-1], activation='linear'))
+    model.add(Dense(layers[2], activation='linear', name="output_layer"))
+    model.summary()
     model.compile(loss=keras.losses.mse, optimizer="adam")
     return model
 
 
+# (None, 1, 3) -> (None, 1, 1000) -> (None, 500) -> (None, 3)
 def download_data(coin):
     endpoint = 'https://min-api.cryptocompare.com/data/histoday'
     res = requests.get(endpoint + '?fsym=' + coin + '&tsym=USD&limit=2000')
@@ -60,26 +62,28 @@ def download_data(coin):
     return hist
 
 
-def load_data(filename, sequence_len=100, output_cols=None, test_split=0.2):
+def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, output_cols=None, test_split=0.2):
     raw_data = pd.read_csv(filename, header=None)
 
     if raw_data.columns.__contains__('Date'):
         raw_data = raw_data.drop(['date'], axis=1)
     else:
-        deleted_cols = [0]
+        deleted_cols = [i for i in range(raw_data.shape[1] - 1)]
         # for col in raw_data.columns:
         #     if isinstance(raw_data.iloc[0, col], str):  # is either symbol or date
         #         deleted_cols.append(col)
         raw_data = raw_data.drop(deleted_cols, axis=1)
 
-    raw_data_values = raw_data.values
+    raw_data_values = series_to_supervised(raw_data.values, n_in=n_lag, n_out=n_seq, dropnan=True)
+    # raw_data_values = raw_data.values
+    print(pd.DataFrame(raw_data_values).head())
 
     scaler = MinMaxScaler((-1, 1))
 
     scaled_values = scaler.fit_transform(raw_data_values)
 
-    plt.plot(scaled_values[:, 5])
-    plt.show()
+    # plt.plot(scaled_values[:, 0])
+    # plt.show()
 
     # normalized_values = normalize(raw_data_values, norm='l2', axis=1)
 
@@ -110,7 +114,32 @@ def load_data(filename, sequence_len=100, output_cols=None, test_split=0.2):
 
         return x_train, y_train, x_test, y_test, raw_data_values, y_data, scaler
     else:
-        return None, None, None, None, None, None
+        test_size = int(test_split * samples.shape[0])
+        x_data = np.array(scaled_values[:, :n_lag])
+        y_data = np.array(scaled_values[:, n_lag:])
+
+        # x_data = x_data.reshape((x_data.shape[0], 1, x_data.shape[1]))
+        # y_data = y_data.reshape((y_data.shape[0], 1, y_data.shape[1]))
+
+        x_train = x_data[:-test_size]
+        y_train = y_data[:-test_size]
+
+        x_test = x_data[-test_size:]
+        y_test = y_data[-test_size:]
+
+        x_train = x_train.reshape((x_train.shape[0], 1, x_train.shape[1]))
+        x_test = x_test.reshape((x_test.shape[0], 1, x_test.shape[1]))
+
+        print("x_data has shape\t:\t", x_data.shape)
+        print("y_data has shape\t:\t", y_data.shape)
+
+        print("x_train has shape\t:\t", x_train.shape)
+        print("y_train has shape\t:\t", y_train.shape)
+
+        print("x_test has shape\t:\t", x_test.shape)
+        print("y_test has shape\t:\t", y_test.shape)
+
+        return x_train, y_train, x_test, y_test, x_data, y_data, scaler
 
 
 def plot(data, predictions):
@@ -119,29 +148,45 @@ def plot(data, predictions):
     plt.show()
 
 
+def plot_seq(data, predictions):
+    predictions = np.array(predictions)
+    plt.plot(data, color="blue", label="data")
+    for i in range(predictions.shape[0]):
+        x = np.arange(1606 + i, 1606 + i + 3)
+        plt.plot(x, predictions[i], color="red", label="prediction")
+    plt.show()
+
+
 def main():
     filename = "../Data/data.csv"
+    n_lag = 5
+    n_seq = 3
     if not os.path.exists(filename):
         coin = 'BTC'
         data = download_data(coin)
         data.to_csv(filename)
-        x_train, y_train, x_test, y_test = load_data(filename, sequence_len=50, output_cols=[5])
+        x_train, y_train, x_test, y_test, x_data, y_data, scaler = load_data(filename, sequence_len=50,
+                                                                             output_cols=None)
     else:
-        x_train, y_train, x_test, y_test, x_data, y_data, scaler = load_data(filename, sequence_len=50, output_cols=[5])
-
-    model = create_model(x_train, layers=[50, 50, 1])
+        x_train, y_train, x_test, y_test, x_data, y_data, scaler = load_data(filename,
+                                                                             sequence_len=50,
+                                                                             n_lag=n_lag,
+                                                                             n_seq=n_seq,
+                                                                             output_cols=None)
+    model = create_model(x_train, layers=[1000, 500, 3])
     model.fit(x=x_train,
               y=y_train,
-              batch_size=64,
+              batch_size=128,
               epochs=5,
               verbose=2,
               validation_split=0.1,
               shuffle=False)
 
     predictions = model.predict(x_test)
-    print(predictions)
+    print(pd.DataFrame(predictions).head())
+    print(pd.DataFrame(predictions).shape)
 
-    plot(x_data[:, 5], predictions)
+    plot_seq(x_data[:, n_lag], predictions)
 
 
 if __name__ == '__main__':
