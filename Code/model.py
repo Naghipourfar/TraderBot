@@ -62,25 +62,25 @@ def download_data(coin):
     return hist
 
 
-def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, output_cols=None, test_split=0.2):
+def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output_cols=None, test_split=0.2):
     raw_data = pd.read_csv(filename, header=None)
 
     if raw_data.columns.__contains__('Date'):
         raw_data = raw_data.drop(['date'], axis=1)
     else:
-        deleted_cols = [i for i in range(raw_data.shape[1] - 1)]
+        deleted_cols = [i for i in range(raw_data.shape[1]) if i != target_idx]
         # for col in raw_data.columns:
         #     if isinstance(raw_data.iloc[0, col], str):  # is either symbol or date
         #         deleted_cols.append(col)
         raw_data = raw_data.drop(deleted_cols, axis=1)
 
     raw_data_values = series_to_supervised(raw_data.values, n_in=n_lag, n_out=n_seq, dropnan=True)
-    # raw_data_values = raw_data.values
+
     print(pd.DataFrame(raw_data_values).head())
 
-    scaler = MinMaxScaler((-1, 1))
+    scalar = MinMaxScaler((-1, 1))
 
-    scaled_values = scaler.fit_transform(raw_data_values)
+    scaled_values = scalar.fit_transform(raw_data_values)
 
     # plt.plot(scaled_values[:, 0])
     # plt.show()
@@ -112,7 +112,7 @@ def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, output_cols=None, te
         print("x_data has shape\t:\t", x_data.shape)
         print("y_data has shape\t:\t", y_data.shape)
 
-        return x_train, y_train, x_test, y_test, raw_data_values, y_data, scaler
+        return x_train, y_train, x_test, y_test, raw_data_values, y_data, scalar
     else:
         test_size = int(test_split * samples.shape[0])
         x_data = np.array(scaled_values[:, :n_lag])
@@ -139,7 +139,7 @@ def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, output_cols=None, te
         print("x_test has shape\t:\t", x_test.shape)
         print("y_test has shape\t:\t", y_test.shape)
 
-        return x_train, y_train, x_test, y_test, x_data, y_data, scaler
+        return x_train, y_train, x_test, y_test, x_data, y_data, scalar
 
 
 def plot(data, predictions):
@@ -150,10 +150,14 @@ def plot(data, predictions):
 
 def plot_seq(data, predictions, n_seq):
     predictions = np.array(predictions)
-    plt.plot(data, color="blue", label="data")
+    data_plot = plt.plot(data, color="blue", label="data")
+    prediction_line = None
     for i in range(predictions.shape[0]):
         x = np.arange(1606 + i, 1606 + i + n_seq)
-        plt.plot(x, predictions[i], color="red", label="prediction")
+        prediction_line = plt.plot(x, predictions[i], color="red", label="prediction")
+    plt.legend(handles=[data_plot, prediction_line], labels=['data', 'prediction'], loc="best")
+    plt.ylabel("Scaled Close Price")
+    plt.xlabel("Time")
     plt.show()
 
 
@@ -161,17 +165,22 @@ def main():
     filename = "../Data/data.csv"
     n_lag = 5
     n_seq = 7
+    target_idx = 5
     if not os.path.exists(filename):
         coin = 'BTC'
         data = download_data(coin)
         data.to_csv(filename)
-        x_train, y_train, x_test, y_test, x_data, y_data, scaler = load_data(filename, sequence_len=50,
+        x_train, y_train, x_test, y_test, x_data, y_data, scalar = load_data(filename, sequence_len=50,
+                                                                             n_lag=n_lag,
+                                                                             n_seq=n_seq,
+                                                                             target_idx=target_idx,
                                                                              output_cols=None)
     else:
-        x_train, y_train, x_test, y_test, x_data, y_data, scaler = load_data(filename,
+        x_train, y_train, x_test, y_test, x_data, y_data, scalar = load_data(filename,
                                                                              sequence_len=50,
                                                                              n_lag=n_lag,
                                                                              n_seq=n_seq,
+                                                                             target_idx=target_idx,
                                                                              output_cols=None)
     model = create_model(x_train, layers=[1000, 500, n_seq])
     model.fit(x=x_train,
