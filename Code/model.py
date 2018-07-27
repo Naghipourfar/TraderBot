@@ -41,7 +41,7 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
     if dropnan:
         agg.dropna(inplace=True)
 
-    return agg
+    return agg.as_matrix()
 
 
 def normalize_data(data):
@@ -74,7 +74,7 @@ def download_data(coin):
     return hist
 
 
-def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output_cols=None, test_split=0.2):
+def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output_cols=None, test_split=0.1):
     raw_data = pd.read_csv(filename, header=None)
 
     if raw_data.columns.__contains__('Date'):
@@ -92,70 +92,43 @@ def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output
 
     scalar = MinMaxScaler((-1, 1))
 
-    scaled_values = scalar.fit_transform(raw_data_values)
+    test_size = int(test_split * raw_data_values.shape[0])
+
+    train_data = np.array(raw_data_values[:-test_size, :])
+    test_data = np.array(raw_data_values[-test_size:, :])
+
+    train_data = scalar.fit_transform(train_data)
+    test_data = scalar.transform(test_data)
 
     plt.figure(figsize=(20, 10))
-    plt.ylim(-1, 1.5)
-    plt.plot(scaled_values[:, 0])
+    x = np.arange(0, raw_data_values.shape[0])
+    plt.plot(x[:train_data.shape[0]], train_data[:, 0], label="Training Data")
+    plt.plot(x[train_data.shape[0]:], test_data[:, 0], label="Test Data")
+    plt.legend(loc="best")
     plt.show()
 
-    # normalized_values = normalize(raw_data_values, norm='l2', axis=1)
+    x_data = np.array(raw_data_values[:, :n_lag])
+    y_data = np.array(raw_data_values[:, n_lag:])
 
-    print(pd.DataFrame(scaled_values).head(5))
+    x_train = train_data[:, :n_lag]
+    y_train = train_data[:, n_lag:]
 
-    samples = []
-    targets = []
-    for index in range(0, scaled_values.shape[0] - sequence_len):
-        samples.append(scaled_values[index:index + sequence_len])
-        targets.append(scaled_values[index + sequence_len, -1])
+    x_test = test_data[:, :n_lag]
+    y_test = test_data[:, n_lag:]
 
-    samples = np.array(samples)
-    print("data has shape\t:\t", samples.shape)
+    x_train = x_train.reshape((x_train.shape[0], 1, x_train.shape[1]))
+    x_test = x_test.reshape((x_test.shape[0], 1, x_test.shape[1]))
 
-    if output_cols:
-        test_size = int(test_split * samples.shape[0])
-        x_data = np.array(samples[:, :, :-1])
-        y_data = np.array(targets)
+    print("x_data has shape\t:\t", x_data.shape)
+    print("y_data has shape\t:\t", y_data.shape)
 
-        x_train = x_data[:-test_size]
-        y_train = y_data[:-test_size]
+    print("x_train has shape\t:\t", x_train.shape)
+    print("y_train has shape\t:\t", y_train.shape)
 
-        x_test = x_data[test_size:]
-        y_test = y_data[test_size:]
+    print("x_test has shape\t:\t", x_test.shape)
+    print("y_test has shape\t:\t", y_test.shape)
 
-        print("x_data has shape\t:\t", x_data.shape)
-        print("y_data has shape\t:\t", y_data.shape)
-
-        return x_train, y_train, x_test, y_test, raw_data_values, y_data, scalar
-    else:
-        test_size = int(test_split * samples.shape[0])
-        x_data = np.array(scaled_values[:, :n_lag])
-        y_data = np.array(scaled_values[:, n_lag:])
-
-        # x_data = x_data.reshape((x_data.shape[0], 1, x_data.shape[1]))
-        # y_data = y_data.reshape((y_data.shape[0], 1, y_data.shape[1]))
-
-        # x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=test_split, shuffle=True)
-
-        x_train = x_data[:-test_size]
-        y_train = y_data[:-test_size]
-
-        x_test = x_data[-test_size:]
-        y_test = y_data[-test_size:]
-
-        x_train = x_train.reshape((x_train.shape[0], 1, x_train.shape[1]))
-        x_test = x_test.reshape((x_test.shape[0], 1, x_test.shape[1]))
-
-        print("x_data has shape\t:\t", x_data.shape)
-        print("y_data has shape\t:\t", y_data.shape)
-
-        print("x_train has shape\t:\t", x_train.shape)
-        print("y_train has shape\t:\t", y_train.shape)
-
-        print("x_test has shape\t:\t", x_test.shape)
-        print("y_test has shape\t:\t", y_test.shape)
-
-        return x_train, y_train, x_test, y_test, x_data, y_data, scalar
+    return x_train, y_train, x_test, y_test, x_data, y_data, scalar
 
 
 def plot(data, predictions):
@@ -191,7 +164,7 @@ def main():
     n_seq = 1  # number of future days to predict
     model_path = "./predictor%d_%d.h5" % (n_seq, n_lag)
     target_idx = 5
-    epochs = 5
+    epochs = 50
     batch_size = 64
 
     tensorboard = keras.callbacks.TensorBoard(log_dir='./Graph/', histogram_freq=0,
