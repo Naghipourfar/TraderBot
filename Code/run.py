@@ -1,8 +1,7 @@
-import lstm
 import time
+
+import lstm
 import matplotlib.pyplot as plt
-import numpy as np
-import keras
 
 
 def plot_results(predicted_data, true_data):
@@ -29,39 +28,28 @@ def plot_results_multiple(predicted_data, true_data, prediction_len):
 # Main Run Thread
 if __name__ == '__main__':
     global_start_time = time.time()
-    epochs = 20
+    epochs = 10
     seq_len = 50
 
     print('> Loading data... ')
 
-    X_train, y_train, X_test, y_test = lstm.load_data_tmp('./data.csv', seq_len, True)
+    X_train, y_train, X_test, y_test = lstm.load_data('../Data/sp500.csv', seq_len, True)
 
     print('> Data Loaded. Compiling...')
 
-    X_train = np.reshape(X_train, (X_train.shape[0] // seq_len, seq_len, -1))
-    y_train = np.reshape(y_train, (y_train.shape[0] // seq_len, seq_len))
-    X_test = np.reshape(X_test, (X_test.shape[0] // seq_len, seq_len, -1))
-    y_test = np.reshape(y_test, (y_test.shape[0] // seq_len, seq_len))
+    model = lstm.build_model([1, 50, 100, 1])
 
-    print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+    model.fit(
+        X_train,
+        y_train,
+        batch_size=512,
+        nb_epoch=epochs,
+        validation_split=0.05,
+        verbose=2)
 
-    # model = lstm.build_model([5, 50, 200, 50])
-    # #
-    # model.fit(
-    #     X_train,
-    #     y_train,
-    #     batch_size=128,
-    #     nb_epoch=epochs,
-    #     validation_split=0.15,
-    #     verbose=2)
-
-    # model.save('predictor50.h5')
-
-    model = keras.models.load_model("./predictor50.h5")
-    #
     predictions = lstm.predict_sequences_multiple(model, X_test, seq_len, 50)
-    # # predicted = lstm.predict_sequence_full(model, X_test, seq_len)
-    # # predicted = lstm.predict_point_by_point(model, X_test)
-    # # print(len(predicted))
+    # predicted = lstm.predict_sequence_full(model, X_test, seq_len)
+    # predicted = lstm.predict_point_by_point(model, X_test)
+
     print('Training duration (s) : ', time.time() - global_start_time)
     plot_results_multiple(predictions, y_test, 50)
