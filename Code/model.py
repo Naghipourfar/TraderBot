@@ -148,11 +148,11 @@ def plot(data, predictions):
     plt.show()
 
 
-def plot_seq(data, predictions):
+def plot_seq(data, predictions, n_seq):
     predictions = np.array(predictions)
     plt.plot(data, color="blue", label="data")
     for i in range(predictions.shape[0]):
-        x = np.arange(1606 + i, 1606 + i + 3)
+        x = np.arange(1606 + i, 1606 + i + n_seq)
         plt.plot(x, predictions[i], color="red", label="prediction")
     plt.show()
 
@@ -160,7 +160,7 @@ def plot_seq(data, predictions):
 def main():
     filename = "../Data/data.csv"
     n_lag = 5
-    n_seq = 3
+    n_seq = 7
     if not os.path.exists(filename):
         coin = 'BTC'
         data = download_data(coin)
@@ -173,7 +173,7 @@ def main():
                                                                              n_lag=n_lag,
                                                                              n_seq=n_seq,
                                                                              output_cols=None)
-    model = create_model(x_train, layers=[1000, 500, 3])
+    model = create_model(x_train, layers=[1000, 500, n_seq])
     model.fit(x=x_train,
               y=y_train,
               batch_size=128,
@@ -184,9 +184,8 @@ def main():
 
     predictions = model.predict(x_test)
     print(pd.DataFrame(predictions).head())
-    print(pd.DataFrame(predictions).shape)
 
-    plot_seq(x_data[:, n_lag], predictions)
+    plot_seq(y_data[:, 0], predictions, n_seq)
 
 
 if __name__ == '__main__':
