@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
-from keras.layers import Dropout, Dense, LSTM
+from keras.layers import Dropout, Dense, LSTM, TimeDistributed
 from keras.models import Sequential
 from sklearn.preprocessing import normalize, MinMaxScaler
 
@@ -54,11 +54,11 @@ def create_model(X, layers):
         if i == 0:
             model.add(LSTM(layers[0], input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
         elif i == len(layers) - 2:
-            model.add(LSTM(layers[i], return_sequences=False))
+            model.add(LSTM(layers[i], return_sequences=True))
         else:
             model.add(LSTM(layers[i], return_sequences=True))
         model.add(Dropout(0.5))
-    model.add(Dense(layers[-1], activation='linear', name="output_layer"))
+    model.add(TimeDistributed(Dense(layers[-1], activation='linear')))
     model.compile(loss=keras.losses.mae, optimizer="adam")
     model.summary()
     return model
@@ -107,8 +107,9 @@ def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output
     plt.legend(loc="best")
     plt.show()
 
-    x_data = np.array(raw_data_values[:, :n_lag])
-    y_data = np.array(raw_data_values[:, n_lag:])
+    data = np.concatenate([train_data, test_data], axis=0)
+    x_data = np.array(data[:, :n_lag])
+    y_data = np.array(data[:, n_lag:])
 
     x_train = train_data[:, :n_lag]
     y_train = train_data[:, n_lag:]
@@ -117,7 +118,10 @@ def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output
     y_test = test_data[:, n_lag:]
 
     x_train = x_train.reshape((x_train.shape[0], 1, x_train.shape[1]))
+    y_train = y_train.reshape((y_train.shape[0], 1, y_train.shape[1]))
     x_test = x_test.reshape((x_test.shape[0], 1, x_test.shape[1]))
+    y_test = y_test.reshape((y_test.shape[0], 1, y_test.shape[1]))
+
 
     print("x_data has shape\t:\t", x_data.shape)
     print("y_data has shape\t:\t", y_data.shape)
@@ -164,7 +168,7 @@ def main():
     n_seq = 1  # number of future days to predict
     model_path = "./predictor%d_%d.h5" % (n_seq, n_lag)
     target_idx = 5
-    epochs = 50
+    epochs = 5
     batch_size = 64
 
     tensorboard = keras.callbacks.TensorBoard(log_dir='./Graph/', histogram_freq=0,
@@ -183,6 +187,7 @@ def main():
                                                                              sequence_len=50,
                                                                              n_lag=n_lag,
                                                                              n_seq=n_seq,
+                                                                             test_split=0.1,
                                                                              target_idx=target_idx,
                                                                              output_cols=None)
 
@@ -212,9 +217,9 @@ def main():
 
     predictions = model.predict(candidate_data)
 
-    print(pd.DataFrame(predictions).head())
+    # print(pd.DataFrame(predictions).head())
 
-    plot_seq(y_data[:, 0], predictions, n_seq, start_idx=1606, step=1)
+    plot_seq(y_data[:, 0], predictions.reshape((predictions.shape[0], 1)), n_seq, start_idx=x_train.shape[0], step=1)
 
 
 if __name__ == '__main__':
