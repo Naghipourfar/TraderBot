@@ -202,7 +202,7 @@ def main():
                   validation_data=(x_test, y_test),
                   callbacks=[tensorboard],
                   shuffle=True)
-        # model.save(model_path)
+        model.save(model_path)
         print("The network has been saved!")
     else:
         print("The network exists. Trying to load ...")
