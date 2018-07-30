@@ -209,6 +209,7 @@ def main():
         model = keras.models.load_model(model_path)
         print("The network has been loaded!")
 
+
     # candidate_data = x_data[[i for i in range(0, x_data.shape[0], 50)], :]
 
     # candidate_data = candidate_data.reshape((candidate_data.shape[0], 1, candidate_data.shape[1]))
