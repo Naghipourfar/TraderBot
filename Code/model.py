@@ -122,7 +122,6 @@ def load_data(filename, sequence_len=100, n_lag=3, n_seq=3, target_idx=5, output
     x_test = x_test.reshape((x_test.shape[0], 1, x_test.shape[1]))
     y_test = y_test.reshape((y_test.shape[0], 1, y_test.shape[1]))
 
-
     print("x_data has shape\t:\t", x_data.shape)
     print("y_data has shape\t:\t", y_data.shape)
 
@@ -208,7 +207,6 @@ def main():
         print("The network exists. Trying to load ...")
         model = keras.models.load_model(model_path)
         print("The network has been loaded!")
-
 
     # candidate_data = x_data[[i for i in range(0, x_data.shape[0], 50)], :]
 
