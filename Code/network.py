@@ -14,22 +14,6 @@ from sklearn.preprocessing import MinMaxScaler
 """
 
 
-def plot(x=None, y=None, figpath=None, xlabel="", ylabel="", title=""):
-    plt.figure(figsize=(15, 10))
-    if x is not None:
-        plt.plot(x, y)
-    else:
-        plt.plot(np.arange(0, y.shape[0]), y)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    if figpath is not None:
-        plt.savefig(figpath)
-        plt.close("all")
-    else:
-        plt.show()
-
-
 def load_data(data_path="../Data/sp500.csv", results_path="../Results/SP500/", n_seq=50, n_out=1):
     print("Loading Data...")
     data = pd.read_csv(data_path)
@@ -37,7 +21,7 @@ def load_data(data_path="../Data/sp500.csv", results_path="../Results/SP500/", n
     print("Data's head")
     print(data.head(2))
     print("Data's Shape\t:\t", data.shape)
-    plot(data['DATE'], data['SP500'], figpath=results_path + "data.png", xlabel="Date", ylabel="SP500")
+    plot(data['DATE'].values, data['SP500'].values, figpath=results_path + "data.png", xlabel="Date", ylabel="SP500")
     data = data['SP500']
     data = data.values  # Convert to numpy ND-Array
     data = create_seq_data(data, n_seq, n_out)
@@ -124,6 +108,22 @@ def plot_actual_with_predictions(actual, prediction, n_out=1, n_steps=10, figpat
     plt.title(title)
     plt.savefig(figpath)
     plt.close("all")
+
+
+def plot(x=None, y=None, figpath=None, xlabel="", ylabel="", title=""):
+    plt.figure(figsize=(15, 10))
+    if x is not None:
+        plt.plot(x, y)
+    else:
+        plt.plot(np.arange(0, y.shape[0]), y)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    if figpath is not None:
+        plt.savefig(figpath)
+        plt.close("all")
+    else:
+        plt.show()
 
 
 def main():
