@@ -64,7 +64,6 @@ def create_model(X, layers):
     return model
 
 
-# (None, 1, 3) -> (None, 1, 1000) -> (None, 500) -> (None, 3)
 def download_data(coin):
     endpoint = 'https://min-api.cryptocompare.com/data/histoday'
     res = requests.get(endpoint + '?fsym=' + coin + '&tsym=USD&limit=2000')
