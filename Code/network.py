@@ -1,9 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from keras.layers import LSTM, Dropout, Dense
+from keras.layers import LSTM, Dropout, Dense, BatchNormalization
 from keras.models import Sequential
 from sklearn.preprocessing import MinMaxScaler
+
+from stocker.stocker import Stocker
 
 """
     Created by Mohsen Naghipourfar on 8/5/18.
@@ -21,12 +23,13 @@ def load_data(data_path="../Data/sp500.csv", results_path="../Results/SP500/", n
     print("Data's head")
     print(data.head(2))
     print("Data's Shape\t:\t", data.shape)
-    plot(data['DATE'].values, data['SP500'].values, figpath=results_path + "data.png", xlabel="Date", ylabel="SP500")
-    data = data['SP500']
+    plot(None, data['close'].values, figpath=results_path + "data.png", xlabel="Date", ylabel="SP500")
+    # data = data['SP500']
+    data = data['close']
     data = data.values  # Convert to numpy ND-Array
     data = create_seq_data(data, n_seq, n_out)
 
-    train_data, test_data = train_test_split(data, train_size=0.75)
+    train_data, test_data = train_test_split(data, train_size=0.82)
     train_data, test_data, scaler = scale_data(train_data, test_data)
 
     x_train, x_test = train_data[:, :-n_out], test_data[:, :-n_out]
@@ -73,10 +76,15 @@ def train_test_split(data, train_size=0.75):
 def create_LSTM(n_timestamp, n_features, layers, n_outputs):
     model = Sequential()
     model.add(LSTM(layers[0], input_shape=(n_timestamp, n_features), return_sequences=True))
+    model.add(BatchNormalization())
     model.add(Dropout(0.5))
     for layer in layers[1:-1]:
         model.add(LSTM(layer, return_sequences=True))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.5))
     model.add(LSTM(layers[-1], return_sequences=False))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.5))
     model.add(Dense(n_outputs, activation='linear'))
     model.compile(optimizer="adam", loss="mse")
     model.summary()
@@ -113,7 +121,7 @@ def plot_actual_with_predictions(actual, prediction, n_out=1, n_steps=10, figpat
 def plot(x=None, y=None, figpath=None, xlabel="", ylabel="", title=""):
     plt.figure(figsize=(15, 10))
     if x is not None:
-        plt.plot(x, y)
+        plt.plot(x, y, 'o')
     else:
         plt.plot(np.arange(0, y.shape[0]), y)
     plt.xlabel(xlabel)
@@ -126,54 +134,96 @@ def plot(x=None, y=None, figpath=None, xlabel="", ylabel="", title=""):
         plt.show()
 
 
-def main():
-    results_path = "../Results/SP500/"
-    n_seq = 7
-    n_out = 7
-    n_steps = 200
-    x_train, x_test, y_train, y_test, scaler = load_data(n_seq=n_seq, n_out=n_out)
+def predict_confidence_interval():
+    amazon = Stocker(ticker='AMZN')
+    amazon.plot_stock()
 
-    model = create_LSTM(x_train.shape[1], x_train.shape[2], [10, 10], n_out)
+    # predict days into the future
+    model, model_data = amazon.create_prophet_model(days=90)
+
+    amazon.evaluate_prediction()
+
+    amazon.changepoint_prior_analysis(changepoint_priors=[0.001, 0.05, 0.1, 0.2])
+
+    amazon.changepoint_prior_validation(start_date='2016-01-04', end_date='2017-01-03',
+                                        changepoint_priors=[0.001, 0.05, 0.1, 0.2])
+
+    # test more changepoint priors on same validation range
+    amazon.changepoint_prior_validation(start_date='2016-01-04', end_date='2017-01-03',
+                                        changepoint_priors=[0.15, 0.2, 0.25, 0.4, 0.5, 0.6])
+
+    amazon.changepoint_prior_scale = 0.5
+
+    amazon.evaluate_prediction()
+
+    # Going big
+    amazon.evaluate_prediction(nshares=1000)
+
+    amazon.predict_future(days=10)
+    amazon.predict_future(days=100)
+
+
+def main():
+    results_path = "../Results/BTC/"
+    n_seq = 1500
+    n_out = 84
+    n_steps = 200
+    x_train, x_test, y_train, y_test, scaler = load_data(data_path="../Data/BTC_2H.csv",
+                                                         results_path=results_path,
+                                                         n_seq=n_seq,
+                                                         n_out=n_out
+                                                         )
+
+    model = create_LSTM(x_train.shape[1], x_train.shape[2], [200, 150, 100], n_out)
     model.fit(
         x=x_train,
         y=y_train,
-        batch_size=128,
+        batch_size=256,
         epochs=20,
         shuffle=False,
         validation_data=(x_test, y_test),
-        verbose=2)
+        verbose=1)
 
-    y_test_forecast = model.predict(x_test)
+    # model.save("./predictor.h5")
 
-    y_test = inverse_scale(x_test, y_test, scaler, n_out)
-    y_test_forecast = inverse_scale(x_test, y_test_forecast, scaler, n_out)
+    # test = np.reshape(x_test[-1, :, :], (1, x_test.shape[1], x_test.shape[2]))
 
-    plot(x=y_test,
-         y=y_test_forecast,
-         figpath=results_path + "prediction-test.png",
-         xlabel="Actual Value",
-         ylabel="Predicted Value")
+    # y_test_forecast = model.predict(test)
 
-    plot(x=None,
-         y=y_test_forecast,
-         figpath=results_path + "prediction.png",
-         xlabel="Time",
-         ylabel="Predicted Value")
+    # y_test = inverse_scale(x_test, y_test, scaler, n_out)
+    # y_test_forecast = inverse_scale(test, y_test_forecast, scaler, n_out)
 
-    plot(x=None,
-         y=y_test,
-         figpath=results_path + "actual.png",
-         xlabel="Time",
-         ylabel="Actual Value")
+    # plot(x=y_test,
+    #      y=y_test_forecast,
+    #      figpath=results_path + "prediction-test.png",
+    #      xlabel="Actual Value",
+    #      ylabel="Predicted Value")
+    #
+    # plot(x=None,
+    #      y=y_test_forecast,
+    #      figpath=results_path + "prediction.png",
+    #      xlabel="Time",
+    #      ylabel="Predicted Value")
+    #
+    # plot(x=None,
+    #      y=y_test,
+    #      figpath=results_path + "actual.png",
+    #      xlabel="Time",
+    #      ylabel="Actual Value")
 
-    plot_actual_with_predictions(actual=y_test,
-                                 prediction=y_test_forecast,
-                                 figpath=results_path + "actual-with-prediction.png",
-                                 n_out=n_out,
-                                 n_steps=n_steps,
-                                 xlabel="Time",
-                                 ylabel="SP500",
-                                 )
+    # plot_actual_with_predictions(actual=y_test,
+    #                              prediction=y_test_forecast,
+    #                              figpath=results_path + "actual-with-prediction.png",
+    #                              n_out=n_out,
+    #                              n_steps=n_steps,
+    #                              xlabel="Time",
+    #                              ylabel="SP500",
+    #                              test=y_test
+    #                              )
+
+    # np.savetxt(fname="./prediction.csv", X=y_test_forecast, delimiter=",")
+
+    model.save("best.h5")
 
 
 if __name__ == '__main__':
