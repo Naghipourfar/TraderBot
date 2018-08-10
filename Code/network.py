@@ -1,10 +1,12 @@
+import os
+
+import keras
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from keras.layers import LSTM, Dropout, Dense, BatchNormalization
 from keras.models import Sequential
 from sklearn.preprocessing import MinMaxScaler
-
 from stocker.stocker import Stocker
 
 """
@@ -86,7 +88,7 @@ def create_LSTM(n_timestamp, n_features, layers, n_outputs):
     model.add(BatchNormalization())
     model.add(Dropout(0.5))
     model.add(Dense(n_outputs, activation='linear'))
-    model.compile(optimizer="adam", loss="mse")
+    model.compile(optimizer="adam", loss="mse", metrics=['mae'])
     model.summary()
     return model
 
@@ -119,6 +121,7 @@ def plot_actual_with_predictions(actual, prediction, n_out=1, n_steps=10, figpat
 
 
 def plot(x=None, y=None, figpath=None, xlabel="", ylabel="", title=""):
+    plt.close("all")
     plt.figure(figsize=(15, 10))
     if x is not None:
         plt.plot(x, y, 'o')
@@ -173,31 +176,33 @@ def main():
                                                          n_seq=n_seq,
                                                          n_out=n_out
                                                          )
-
-    model = create_LSTM(x_train.shape[1], x_train.shape[2], [200, 150, 100], n_out)
-    model.fit(
-        x=x_train,
-        y=y_train,
-        batch_size=256,
-        epochs=20,
-        shuffle=False,
-        validation_data=(x_test, y_test),
-        verbose=1)
+    if os.path.exists("./best.h5"):
+        model = keras.models.load_model("./best.h5")
+    else:
+        model = create_LSTM(x_train.shape[1], x_train.shape[2], [1], n_out)
+    # model.fit(
+    #     x=x_train,
+    #     y=y_train,
+    #     batch_size=256,
+    #     epochs=5,
+    #     shuffle=False,
+    #     validation_data=(x_test, y_test),
+    #     verbose=1)
 
     # model.save("./predictor.h5")
 
     # test = np.reshape(x_test[-1, :, :], (1, x_test.shape[1], x_test.shape[2]))
 
-    # y_test_forecast = model.predict(test)
+    y_test_forecast = model.predict(x_test)
 
-    # y_test = inverse_scale(x_test, y_test, scaler, n_out)
-    # y_test_forecast = inverse_scale(test, y_test_forecast, scaler, n_out)
+    y_test = inverse_scale(x_test, y_test, scaler, n_out)
+    y_test_forecast = inverse_scale(x_test, y_test_forecast, scaler, n_out)
 
-    # plot(x=y_test,
-    #      y=y_test_forecast,
-    #      figpath=results_path + "prediction-test.png",
-    #      xlabel="Actual Value",
-    #      ylabel="Predicted Value")
+    plot(x=y_test,
+         y=y_test_forecast,
+         figpath=results_path + "prediction-test-best.png",
+         xlabel="Actual Value",
+         ylabel="Predicted Value")
     #
     # plot(x=None,
     #      y=y_test_forecast,
@@ -211,15 +216,14 @@ def main():
     #      xlabel="Time",
     #      ylabel="Actual Value")
 
-    # plot_actual_with_predictions(actual=y_test,
-    #                              prediction=y_test_forecast,
-    #                              figpath=results_path + "actual-with-prediction.png",
-    #                              n_out=n_out,
-    #                              n_steps=n_steps,
-    #                              xlabel="Time",
-    #                              ylabel="SP500",
-    #                              test=y_test
-    #                              )
+    plot_actual_with_predictions(actual=y_test,
+                                 prediction=y_test_forecast,
+                                 figpath=results_path + "actual-with-prediction-best.png",
+                                 n_out=n_out,
+                                 n_steps=n_steps,
+                                 xlabel="Time",
+                                 ylabel="SP500"
+                                 )
 
     # np.savetxt(fname="./prediction.csv", X=y_test_forecast, delimiter=",")
 
