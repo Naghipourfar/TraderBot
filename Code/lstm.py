@@ -1,104 +1,61 @@
-import os
-import time
-import warnings
-
-import numpy as np
-from keras.layers.core import Dense, Activation, Dropout
-from keras.layers.recurrent import LSTM
+import pandas as pd
+import numpy as numpy
 from keras.models import Sequential
-from numpy import newaxis
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Hide messy TensorFlow warnings
-warnings.filterwarnings("ignore")  # Hide messy Numpy warnings
-
-
-def load_data(filename, seq_len, normalise_window):
-    f = open(filename, 'rb').read()
-    data = f.decode().split('\n')
-
-    sequence_length = seq_len + 1
-    result = []
-    for index in range(len(data) - sequence_length):
-        result.append(data[index: index + sequence_length])
-
-    if normalise_window:
-        result = normalise_windows(result)
-
-    result = np.array(result)
-
-    row = round(0.9 * result.shape[0])
-    train = result[:int(row), :]
-    np.random.shuffle(train)
-    x_train = train[:, :-1]
-    y_train = train[:, -1]
-    x_test = result[int(row):, :-1]
-    y_test = result[int(row):, -1]
-
-    x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-    x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
-
-    return [x_train, y_train, x_test, y_test]
+from keras.layers import Dense, Dropout, Activation, Flatten,Reshape
+from keras.layers import Conv1D, MaxPooling1D
+from keras.utils import np_utils
+from keras.layers import LSTM, LeakyReLU, CuDNNLSTM
+from keras.callbacks import CSVLogger, ModelCheckpoint
+import h5py
+import os
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
+from keras import regularizers
 
 
-def normalise_windows(window_data):
-    normalised_data = []
-    for window in window_data:
-        normalised_window = [((float(p) / float(window[0])) - 1) for p in window]
-        normalised_data.append(normalised_window)
-    return normalised_data
+os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+set_session(tf.Session(config=config))
+
+with h5py.File(''.join(['data/bitcoin2015to2017_close.h5']), 'r') as hf:
+    datas = hf['inputs'].value
+    labels = hf['outputs'].value
 
 
-def build_model(layers):
-    model = Sequential()
-
-    model.add(LSTM(
-        input_dim=layers[0],
-        output_dim=layers[1],
-        return_sequences=True))
-    model.add(Dropout(0.2))
-
-    model.add(LSTM(
-        layers[2],
-        return_sequences=False))
-    model.add(Dropout(0.2))
-
-    model.add(Dense(
-        output_dim=layers[3]))
-    model.add(Activation("linear"))
-
-    start = time.time()
-    model.compile(loss="mse", optimizer="rmsprop")
-    print("> Compilation Time : ", time.time() - start)
-    return model
 
 
-def predict_point_by_point(model, data):
-    # Predict each timestep given the last sequence of true data, in effect only predicting 1 step ahead each time
-    predicted = model.predict(data)
-    predicted = np.reshape(predicted, (predicted.size,))
-    return predicted
+step_size = datas.shape[1]
+units= 50
+second_units = 30
+batch_size = 8
+nb_features = datas.shape[2]
+epochs = 50
+output_size=16
+reg = 1
+output_file_name='bitcoin2015to2017_close_LSTM_1_tanh_leaky_areg_l1_'+ str(reg)
+#split training validation
+training_size = int(0.8* datas.shape[0])
+training_datas = datas[:training_size,:]
+training_labels = labels[:training_size,:,0]
+validation_datas = datas[training_size:,:]
+validation_labels = labels[training_size:,:,0]
 
 
-def predict_sequence_full(model, data, window_size):
-    # Shift the window by 1 new prediction each time, re-run predictions on new window
-    curr_frame = data[0]
-    predicted = []
-    for i in range(len(data)):
-        predicted.append(model.predict(curr_frame[newaxis, :, :])[0, 0])
-        curr_frame = curr_frame[1:]
-        curr_frame = np.insert(curr_frame, [window_size - 1], predicted[-1], axis=0)
-    return predicted
+#build model
+model = Sequential()
+model.add(CuDNNLSTM(units=units, activity_regularizer=regularizers.l1(reg), input_shape=(step_size,nb_features),return_sequences=False))
+model.add(Activation('tanh'))
+model.add(Dropout(0.2))
+model.add(Dense(output_size))
+model.add(LeakyReLU())
+model.compile(loss='mse', optimizer='adam')
+model.fit(training_datas, training_labels, batch_size=batch_size,validation_data=(validation_datas,validation_labels), epochs = epochs, callbacks=[CSVLogger(output_file_name+'.csv', append=True)])
+
+# model.fit(datas,labels)
+#model.save(output_file_name+'.h5')
 
 
-def predict_sequences_multiple(model, data, window_size, prediction_len):
-    # Predict sequence of 50 steps before shifting prediction run forward by 50 steps
-    prediction_seqs = []
-    for i in range(int(len(data) / prediction_len)):
-        curr_frame = data[i * prediction_len]
-        predicted = []
-        for j in range(prediction_len):
-            predicted.append(model.predict(curr_frame[newaxis, :, :])[0, 0])
-            curr_frame = curr_frame[1:]
-            curr_frame = np.insert(curr_frame, [window_size - 1], predicted[-1], axis=0)
-        prediction_seqs.append(predicted)
-    return prediction_seqs
