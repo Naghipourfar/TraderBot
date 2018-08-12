@@ -102,3 +102,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# idea folder
+.idea/
+
+/Users/Future/Desktop/Internship/Trader/TraderBot/Data/
+
+/Users/Future/Desktop/Internship/Trader/TraderBot/Results
+
+/Users/Future/Desktop/Internship/Trader/TraderBot/weights
+
+/Users/Future/Desktop/Internship/Trader/TraderBot/SavedModels
+
