@@ -106,8 +106,11 @@ venv.bak/
 # idea folder
 .idea/
 
-/Code/best.h5
 /Data/
 /SavedModels
 /weights
 /Results
+
+*.csv
+*.zip
+*.h5
