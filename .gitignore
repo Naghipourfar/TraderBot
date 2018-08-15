@@ -112,5 +112,4 @@ venv.bak/
 /Results
 
 *.csv
-*.zip
 *.h5
