@@ -16,10 +16,10 @@ url = 'https://poloniex.com/public?command=returnChartData&currencyPair=USDT_BTC
 
 coins = ['BTC']  # LTC, BCC, ETH, STELLAR, CARDANO
 df_list = []
-start_timestamp = str(1439014500)
-period = str(7200)
+start_timestamp = str(000000000000)
+period = str(7200)  # 2 hours
 for coin in coins:
-    url = 'https://poloniex.com/public?command=returnChartData&currencyPair=USDT_' + coin + '&start=' + start_timestamp + '&end=9999999999&period=' + period
+    url = 'https://poloniex.com/public?command=returnChartData&currencyPair=USDT_' + coin + '&start=' + start_timestamp + '&end=999999999999&period=' + period
     url_content = requests.get(url)
     df = json.loads(url_content.content)
     df = pd.DataFrame(df)
@@ -27,4 +27,4 @@ for coin in coins:
     new_columns = ['Close', 'Timestamp', 'High', 'Low', 'Open']
     df = df.loc[:, original_columns]
     df.columns = new_columns
-    df.to_csv('../Data/' + coin + '2015to2017.csv', index=None)
+    df.to_csv('../Data/' + coin + '.csv', index=None)
