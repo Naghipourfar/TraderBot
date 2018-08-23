@@ -36,21 +36,21 @@ class PastSampler:
 
 # data file path
 coin = 'BTC'
-dfp = '../Data/' + coin + '2015to2017.csv'
+dfp = '../Data/' + coin + '.csv'
 
 # Columns of price data to use
-columns = ['Close']
+columns = ['Close', 'High', 'Low']
 df = pd.read_csv(dfp)
 time_stamps = df['Timestamp']
+print(time_stamps.shape)
 df = df.loc[:, columns]
 original_df = pd.read_csv(dfp).loc[:, columns]
 
-file_name = '../Data/' + coin + '2015to2017_close.h5'
+file_name = '../Data/' + coin + '.h5'
 
-scalar = MinMaxScaler()
+scalar = MinMaxScaler((-1, 1))
 # normalization
-for c in columns:
-    df[c] = scalar.fit_transform(df[c].values.reshape(-1, 1))
+df[columns] = scalar.fit_transform(df[columns].values.reshape(-1, len(columns)))
 
 # Features are input sample dimensions(channels)
 A = np.array(df)[:, None, :]
@@ -58,7 +58,7 @@ original_A = np.array(original_df)[:, None, :]
 time_stamps = np.array(time_stamps)[:, None, None]
 
 # Make samples of temporal sequences of pricing data (channel)
-NPS, NFS = 256, 16  # Number of past and future samples
+NPS, NFS = 360, 84  # Number of past and future samples
 ps = PastSampler(NPS, NFS, sliding_window=False)
 B, Y = ps.transform(A)
 input_times, output_times = ps.transform(time_stamps)
