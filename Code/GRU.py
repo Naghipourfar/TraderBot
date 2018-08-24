@@ -44,25 +44,10 @@ validation_labels = [np.array(validation_labels[:, :, 0]).reshape((validation_si
                      np.array(validation_labels[:, :, 1]).reshape((validation_size, -1)),
                      np.array(validation_labels[:, :, 2]).reshape((validation_size, -1))]
 
-# build model
-# model = Sequential()
-# model.add(GRU(units=units, input_shape=(step_size, n_features), return_sequences=False))
-# model.add(Activation('tanh'))
-# model.add(Dropout(0.2))
-# model.add(Dense(output_size, activation='linear'))
-# model.add(LeakyReLU(alpha=0.001))
-# model.compile(loss='mape', optimizer='adam')
-# model.fit(training_datas,
-#           training_labels,
-#           batch_size=batch_size,
-#           validation_data=(validation_datas, validation_labels),
-#           epochs=epochs,
-#           verbose=2,
-#           callbacks=[
-#               CSVLogger(output_file_name + '.csv', append=True),
-#               ModelCheckpoint(output_file_name + '-{epoch:02d}-{val_loss:.5f}.hdf5', monitor='val_loss',
-#                               verbose=1, mode='min', save_best_only=True)])
-input_layer = Input(shape=(step_size, n_features, ))
+print("Training Shape\t:\t(%d, %d, %d)" % (training_size, step_size, n_features))
+print("Validation Shape\t:\t(%d, %d, %d)" % (datas.shape[0] - training_size, step_size, n_features))
+
+input_layer = Input(shape=(step_size, n_features,))
 layer_1 = GRU(units=units, return_sequences=True)(input_layer)
 layer_1 = Dropout(0.5)(layer_1)
 
