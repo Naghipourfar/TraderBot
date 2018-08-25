@@ -25,7 +25,6 @@ batch_size = 8
 n_features = datas.shape[2]
 epochs = 250
 output_size = 12
-# split training validation
 training_size = datas.shape[0] - 1
 # training_size = int(0.8 * datas.shape[0])
 training_datas = datas[:training_size, :]
