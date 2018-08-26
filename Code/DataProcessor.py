@@ -35,40 +35,41 @@ class PastSampler:
 
 
 # data file path
-coin = 'BTC'
-dfp = '../Data/' + coin + '.csv'
+coins = 'BTC', 'LTC', 'ETH'
+for coin in coins:
+    dfp = '../Data/' + coin + '.csv'
 
-# Columns of price data to use
-columns = ['Close', 'High', 'Low']
-df = pd.read_csv(dfp)
-time_stamps = df['Timestamp']
-print(time_stamps.shape)
-df = df.loc[:, columns]
-original_df = pd.read_csv(dfp).loc[:, columns]
+    # Columns of price data to use
+    columns = ['Close', 'High', 'Low']
+    df = pd.read_csv(dfp)
+    time_stamps = df['Timestamp']
+    print(time_stamps.shape)
+    df = df.loc[:, columns]
+    original_df = pd.read_csv(dfp).loc[:, columns]
 
-file_name = '../Data/' + coin + '.h5'
+    file_name = '../Data/' + coin + '.h5'
 
-scalar = MinMaxScaler((-1, 1))
-# normalization
-df[columns] = scalar.fit_transform(df[columns].values.reshape(-1, len(columns)))
+    scalar = MinMaxScaler((-1, 1))
+    # normalization
+    df[columns] = scalar.fit_transform(df[columns].values.reshape(-1, len(columns)))
 
-# Features are input sample dimensions(channels)
-A = np.array(df)[:, None, :]
-original_A = np.array(original_df)[:, None, :]
-time_stamps = np.array(time_stamps)[:, None, None]
+    # Features are input sample dimensions(channels)
+    A = np.array(df)[:, None, :]
+    original_A = np.array(original_df)[:, None, :]
+    time_stamps = np.array(time_stamps)[:, None, None]
 
-# Make samples of temporal sequences of pricing data (channel)
-NPS, NFS = 360, 84  # Number of past and future samples
-ps = PastSampler(NPS, NFS, sliding_window=False)
-B, Y = ps.transform(A)
-input_times, output_times = ps.transform(time_stamps)
-original_B, original_Y = ps.transform(original_A)
+    # Make samples of temporal sequences of pricing data (channel)
+    NPS, NFS = 360, 84  # Number of past and future samples
+    ps = PastSampler(NPS, NFS, sliding_window=False)
+    B, Y = ps.transform(A)
+    input_times, output_times = ps.transform(time_stamps)
+    original_B, original_Y = ps.transform(original_A)
 
-with h5py.File(file_name, 'w') as f:
-    f.create_dataset("inputs", data=B)
-    f.create_dataset('outputs', data=Y)
-    f.create_dataset("input_times", data=input_times)
-    f.create_dataset('output_times', data=output_times)
-    f.create_dataset("original_datas", data=np.array(original_df))
-    f.create_dataset('original_inputs', data=original_B)
-    f.create_dataset('original_outputs', data=original_Y)
+    with h5py.File(file_name, 'w') as f:
+        f.create_dataset("inputs", data=B)
+        f.create_dataset('outputs', data=Y)
+        f.create_dataset("input_times", data=input_times)
+        f.create_dataset('output_times', data=output_times)
+        f.create_dataset("original_datas", data=np.array(original_df))
+        f.create_dataset('original_inputs', data=original_B)
+        f.create_dataset('original_outputs', data=original_Y)

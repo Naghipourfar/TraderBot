@@ -12,13 +12,16 @@ import requests
 """
 
 # connect to poloniex's API
-url = 'https://poloniex.com/public?command=returnChartData&currencyPair=USDT_BTC&start=1356998100&end=9999999999&period=300'
+url = 'https://poloniex.com/public?command=returnChartData&currencyPair=USDT_BTC&start=1356998100&end=9999999999' \
+      '&period=300 '
 
-coins = ['BTC']  # LTC, BCC, ETH, STELLAR, CARDANO
+coins = ['BTC', 'LTC', 'ETH']  # BTC, LTC, BCC, ETH, STELLAR, CARDANO
+new_coins = ['BCC', 'STELLAR', 'CARDANO']
 df_list = []
 start_timestamp = str(000000000000)
 period = str(7200)  # 2 hours
 for coin in coins:
+    print(coin)
     url = 'https://poloniex.com/public?command=returnChartData&currencyPair=USDT_' + coin + '&start=' + start_timestamp + '&end=999999999999&period=' + period
     url_content = requests.get(url)
     df = json.loads(url_content.content)
